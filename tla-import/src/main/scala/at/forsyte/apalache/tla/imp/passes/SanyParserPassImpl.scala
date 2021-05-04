@@ -94,9 +94,9 @@ class SanyParserPassImpl @Inject() (
         val output = options.getOrElse("parser", "output", "")
         if (output.nonEmpty) {
           if (output.contains(".tla"))
-            writerFactory.writeModuleAllFormats(rootModule.get, TlaWriter.STANDARD_MODULES, new File(output))
+            writerFactory.writeModuleToTla(rootModule.get, TlaWriter.STANDARD_MODULES, new File(output))
           else if (output.contains(".json"))
-            writeJson(rootModule.get, new File(output))
+            writerFactory.writeModuleToJson(rootModule.get, TlaWriter.STANDARD_MODULES, new File(output))
           else
             logger.error(
                 "  > Error writing output: please give either .tla or .json filename"
@@ -115,17 +115,6 @@ class SanyParserPassImpl @Inject() (
         }
 
         true
-    }
-  }
-
-  private def writeJson(module: TlaModule, file: File): Unit = {
-    val writer = new PrintWriter(new FileWriter(file, false))
-    try {
-      val sourceLocator: SourceLocator = SourceLocator(sourceStore.makeSourceMap, changeListener)
-      val jsonText = new TlaToUJson(Some(sourceLocator)).makeRoot(Seq(module)).toString
-      writer.write(jsonText)
-    } finally {
-      writer.close()
     }
   }
 
