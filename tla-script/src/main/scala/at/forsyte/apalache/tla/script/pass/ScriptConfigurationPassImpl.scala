@@ -36,12 +36,13 @@ class ScriptConfigurationPassImpl @Inject() (val options: PassOptions, val sourc
     } else {
       val dashboard = new ScriptExtractor(annotationStore, tracker)(tlaModule.get)
       // In the future, we will run the tests in the dashboard. For now, we just write them to files.
+      val nGenerated = dashboard.queueLen
       while (dashboard.queueLen > 0) {
         val (testModule, testScript) = dashboard.pop().get
         tlaWriterFactory.writeModuleAllFormats(testModule, TlaWriter.STANDARD_MODULES, new File("."))
-        logger.info(s"Wrote test ${testModule.name}")
+        logger.info(s"Wrote test ${testScript.testName} to ${testModule.name}")
       }
-      logger.info(s"Ignored tests: ${dashboard.stats.nIgnored}")
+      logger.info(s" > GENERATED: $nGenerated IGNORED: ${dashboard.stats.nIgnored}")
       true
     }
   }

@@ -10,8 +10,9 @@ import at.forsyte.apalache.infra.passes.{PassChainExecutor, TlaModuleMixin}
 import at.forsyte.apalache.infra.{ExceptionAdapter, FailureMessage, NormalErrorMessage, PassOptionException}
 import at.forsyte.apalache.tla.bmcmt.config.CheckerModule
 import at.forsyte.apalache.tla.imp.passes.ParserModule
+import at.forsyte.apalache.tla.script.pass.ScriptConfigurationModule
 import at.forsyte.apalache.tla.tooling.{ExitCodes, Version}
-import at.forsyte.apalache.tla.tooling.opt.{CheckCmd, ConfigCmd, General, ParseCmd, TestCmd, TypeCheckCmd}
+import at.forsyte.apalache.tla.tooling.opt.{CheckCmd, ConfigCmd, General, ParseCmd, ScriptCmd, TestCmd, TypeCheckCmd}
 import at.forsyte.apalache.tla.typecheck.passes.TypeCheckerModule
 import com.google.inject.{Guice, Injector}
 import com.typesafe.scalalogging.LazyLogging
@@ -68,7 +69,7 @@ object Tool extends LazyLogging {
         .parse(args)
         .withProgramName("apalache-mc")
         .version("%s build %s".format(Version.version, Version.build), "version")
-        .withCommands(new ParseCmd, new CheckCmd, new TypeCheckCmd, new TestCmd, new ConfigCmd)
+        .withCommands(new ParseCmd, new CheckCmd, new TypeCheckCmd, new TestCmd, new ScriptCmd, new ConfigCmd)
 
     if (!command.isInstanceOf[Some[General]]) {
       // A standard option, e.g., --version or --help. No header, no timer.
@@ -107,6 +108,12 @@ object Tool extends LazyLogging {
             submitStatisticsIfEnabled(Map("tool" -> "apalache", "mode" -> "typecheck", "workers" -> "1"))
             val injector = injectorFactory(typecheck)
             handleExceptions(injector, runTypeCheck(injector, typecheck))
+
+          case Some(script: ScriptCmd) =>
+            logger.info("Script " + script.file)
+            submitStatisticsIfEnabled(Map("tool" -> "apalache", "mode" -> "script", "workers" -> "1"))
+            val injector = injectorFactory(script)
+            handleExceptions(injector, runScript(injector, script))
 
           case Some(config: ConfigCmd) =>
             logger.info("Configuring Apalache")
@@ -147,6 +154,22 @@ object Tool extends LazyLogging {
       ExitCodes.NO_ERROR
     } else {
       logger.info("Parser has failed")
+      ExitCodes.ERROR
+    }
+  }
+
+  private def runScript(injector: => Injector, script: ScriptCmd): Int = {
+    // here, we implement a terminal pass to get the parse results
+    val executor = injector.getInstance(classOf[PassChainExecutor])
+    executor.options.set("io.outdir", createOutputDir())
+    executor.options.set("parser.filename", script.file.getAbsolutePath)
+
+    val result = executor.run()
+    if (result.isDefined) {
+      logger.info("Generated goals")
+      ExitCodes.NO_ERROR
+    } else {
+      logger.info("Goal generator has failed")
       ExitCodes.ERROR
     }
   }
@@ -308,6 +331,7 @@ object Tool extends LazyLogging {
       case _: CheckCmd     => Guice.createInjector(new CheckerModule)
       case _: TestCmd      => Guice.createInjector(new CheckerModule)
       case _: TypeCheckCmd => Guice.createInjector(new TypeCheckerModule)
+      case _: ScriptCmd    => Guice.createInjector(new ScriptConfigurationModule)
       case _               => throw new RuntimeException("Unexpected command: " + cmd)
     }
   }

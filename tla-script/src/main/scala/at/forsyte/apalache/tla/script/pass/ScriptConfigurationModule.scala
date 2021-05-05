@@ -20,7 +20,7 @@ import com.google.inject.{AbstractModule, TypeLiteral}
  *
  * @author Igor Konnov
  */
-class ScriptCheckerModule extends AbstractModule {
+class ScriptConfigurationModule extends AbstractModule {
   override def configure(): Unit = {
     // the options singleton
     bind(classOf[PassOptions])
