@@ -16,23 +16,23 @@ class RequireEnsureKindParser(module: TlaModule) {
   private val defs = Map(module.operDeclarations map { d => d.name -> d }: _*)
   private var levelCacheMap: Map[String, TlaLevel] = Map()
 
-  def parse(annotation: Annotation): Either[ScriptError, RequireEnsureKind] = {
+  def parse(annotation: Annotation): Either[ScriptFailure, RequireEnsureKind] = {
     findOperatorName(annotation) flatMap { name =>
       if (!defs.contains(name)) {
-        Left(ScriptError(name, s"Operator $name not found"))
+        Left(ScriptFailure(s"Operator $name not found"))
       } else {
         cacheLevel(name)
         (annotation.name, levelCacheMap(name)) match {
           case ("require", TlaLevelConst) =>
             Right(RequireConst(name))
           case ("ensure", TlaLevelConst) =>
-            Left(ScriptError(name, s"Operator $name has constant level, unexpected in @ensure"))
+            Left(ScriptFailure(s"Operator $name has constant level, unexpected in @ensure"))
           case ("require", TlaLevelState) =>
             Right(RequireState(name))
           case ("ensure", TlaLevelState) =>
-            Left(ScriptError(name, s"Operator $name has action level, unexpected in @ensure"))
+            Left(ScriptFailure(s"Operator $name has action level, unexpected in @ensure"))
           case ("require", TlaLevelAction) =>
-            Left(ScriptError(name, s"Operator $name has action level, unexpected in @require"))
+            Left(ScriptFailure(s"Operator $name has action level, unexpected in @require"))
           case ("ensure", TlaLevelAction) =>
             Right(EnsureAction(name))
           case ("require", TlaLevelTemporal) =>
@@ -44,7 +44,7 @@ class RequireEnsureKindParser(module: TlaModule) {
     }
   }
 
-  private def findOperatorName(annotation: Annotation): Either[ScriptError, String] = {
+  private def findOperatorName(annotation: Annotation): Either[ScriptFailure, String] = {
     annotation.args match {
       case Seq(AnnotationIdent(name)) =>
         Right(name)
@@ -54,7 +54,7 @@ class RequireEnsureKindParser(module: TlaModule) {
 
       case _ =>
         val msg = "Unexpected arguments in %s: %s".format(annotation.name, annotation.toPrettyString)
-        Left(ScriptError(annotation.name, msg))
+        Left(ScriptFailure(msg))
     }
   }
 

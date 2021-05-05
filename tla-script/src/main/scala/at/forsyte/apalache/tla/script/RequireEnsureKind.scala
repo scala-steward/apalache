@@ -1,6 +1,8 @@
 package at.forsyte.apalache.tla.script
 
-sealed trait RequireEnsureKind {}
+sealed trait RequireEnsureKind {
+  val name: String
+}
 
 case class RequireConst(name: String) extends RequireEnsureKind
 
