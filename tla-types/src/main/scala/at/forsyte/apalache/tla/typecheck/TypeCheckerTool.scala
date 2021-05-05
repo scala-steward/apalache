@@ -68,8 +68,16 @@ class TypeCheckerTool(annotationStore: AnnotationStore, inferPoly: Boolean) exte
       None
     } else {
       val transformer = new TypeRewriter(tracker, defaultTag)(recorder.toMap)
-      val taggedDecls = module.declarations.map(transformer(_))
-      Some(new TlaModule(module.name, taggedDecls))
+      // add types to the declarations
+      val taggedDecls = module.declarations.map { d =>
+        val result = transformer(d)
+        // transfer all annotations to the new declaration, except for the type annotations
+        annotationStore += result.ID -> annotationStore.getOrElse(d.ID, List()).filter { ann =>
+          ann.name != StandardAnnotations.TYPE && ann.name != StandardAnnotations.TYPE_ALIAS
+        }
+        result
+      }
+      Some(TlaModule(module.name, taggedDecls))
     }
   }
 
