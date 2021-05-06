@@ -5,7 +5,9 @@ import at.forsyte.apalache.io.annotations.{Annotation, AnnotationInt}
 import at.forsyte.apalache.tla.lir.TypedPredefs._
 import at.forsyte.apalache.tla.lir.convenience.tla
 import at.forsyte.apalache.tla.lir.transformations.TransformationTracker
-import at.forsyte.apalache.tla.lir.{BoolT1, OperT1, TlaDecl, TlaEx, TlaModule, TlaOperDecl}
+import at.forsyte.apalache.tla.lir.{
+  BoolT1, OperT1, TlaDecl, TlaDeclLevelFinder, TlaEx, TlaLevelConst, TlaModule, TlaOperDecl
+}
 import at.forsyte.apalache.tla.script.ScriptExtractor.TestTriple
 import com.typesafe.scalalogging.LazyLogging
 
@@ -46,11 +48,12 @@ class ScriptExtractor(store: AnnotationStore, tracker: TransformationTracker) ex
     testTriple.testAnnotation match {
       case Annotation("testStateless") =>
         val command = StatelessScriptCommand(testTriple.decl.name)
-        // importantly, do not include variables, as they are not needed for stateless tests
+        // Importantly, we only include constant-level declarations and exclude variables
+        val levelFinder = new TlaDeclLevelFinder(inputModule)
         val moduleDecls: Seq[TlaDecl] =
           inputModule.constDeclarations ++
             inputModule.assumeDeclarations ++
-            nonTestDefsSorted
+            nonTestDefsSorted.filter(d => levelFinder(d) == TlaLevelConst)
         for {
           cinit <- groupKinds(nonTestDefs, command.testName, command.constInit,
               testTriple.kinds.collect { case r @ RequireConst(_) => r })

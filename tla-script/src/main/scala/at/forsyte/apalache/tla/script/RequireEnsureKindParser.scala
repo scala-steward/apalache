@@ -1,9 +1,7 @@
 package at.forsyte.apalache.tla.script
 
 import at.forsyte.apalache.io.annotations.{Annotation, AnnotationIdent, AnnotationStr}
-import at.forsyte.apalache.tla.lir.{
-  TlaLevel, TlaLevelAction, TlaLevelConst, TlaLevelFinder, TlaLevelState, TlaLevelTemporal, TlaModule
-}
+import at.forsyte.apalache.tla.lir._
 
 /**
  * Parser of require/ensure annotations that classifies the annotations more precisely than the user.
@@ -11,35 +9,34 @@ import at.forsyte.apalache.tla.lir.{
  * @param module TLA module
  */
 class RequireEnsureKindParser(module: TlaModule) {
-  private val consts = Set(module.constDeclarations.map(_.name): _*)
-  private val vars = Set(module.varDeclarations.map(_.name): _*)
+  private val levelFinder = new TlaDeclLevelFinder(module)
   private val defs = Map(module.operDeclarations map { d => d.name -> d }: _*)
-  private var levelCacheMap: Map[String, TlaLevel] = Map()
 
   def parse(annotation: Annotation): Either[ScriptFailure, RequireEnsureKind] = {
     findOperatorName(annotation) flatMap { name =>
-      if (!defs.contains(name)) {
-        Left(ScriptFailure(s"Operator $name not found"))
-      } else {
-        cacheLevel(name)
-        (annotation.name, levelCacheMap(name)) match {
-          case ("require", TlaLevelConst) =>
-            Right(RequireConst(name))
-          case ("ensure", TlaLevelConst) =>
-            Left(ScriptFailure(s"Operator $name has constant level, unexpected in @ensure"))
-          case ("require", TlaLevelState) =>
-            Right(RequireState(name))
-          case ("ensure", TlaLevelState) =>
-            Left(ScriptFailure(s"Operator $name has action level, unexpected in @ensure"))
-          case ("require", TlaLevelAction) =>
-            Left(ScriptFailure(s"Operator $name has action level, unexpected in @require"))
-          case ("ensure", TlaLevelAction) =>
-            Right(EnsureAction(name))
-          case ("require", TlaLevelTemporal) =>
-            Right(RequireTemporal(name))
-          case ("ensure", TlaLevelTemporal) =>
-            Right(EnsureTemporal(name))
-        }
+      defs.get(name) match {
+        case None =>
+          Left(ScriptFailure(s"Operator $name not found"))
+
+        case Some(decl) =>
+          (annotation.name, levelFinder(decl)) match {
+            case ("require", TlaLevelConst) =>
+              Right(RequireConst(name))
+            case ("ensure", TlaLevelConst) =>
+              Left(ScriptFailure(s"Operator $name has constant level, unexpected in @ensure"))
+            case ("require", TlaLevelState) =>
+              Right(RequireState(name))
+            case ("ensure", TlaLevelState) =>
+              Left(ScriptFailure(s"Operator $name has action level, unexpected in @ensure"))
+            case ("require", TlaLevelAction) =>
+              Left(ScriptFailure(s"Operator $name has action level, unexpected in @require"))
+            case ("ensure", TlaLevelAction) =>
+              Right(EnsureAction(name))
+            case ("require", TlaLevelTemporal) =>
+              Right(RequireTemporal(name))
+            case ("ensure", TlaLevelTemporal) =>
+              Right(EnsureTemporal(name))
+          }
       }
     }
   }
@@ -57,26 +54,4 @@ class RequireEnsureKindParser(module: TlaModule) {
         Left(ScriptFailure(msg))
     }
   }
-
-  private def cacheLevel(name: String): Unit = {
-    def levelOfName(name: String): TlaLevel = {
-      if (consts.contains(name)) {
-        TlaLevelConst
-      } else if (vars.contains(name)) {
-        TlaLevelState
-      } else {
-        if (defs.contains(name)) {
-          // as the module comes from the parser, we assume that defs contains a definition for the name `name`
-          cacheLevel(name)
-          levelCacheMap(name)
-        } else {
-          TlaLevelConst
-        }
-      }
-    }
-
-    val level = new TlaLevelFinder(levelOfName)(defs(name).body)
-    levelCacheMap += name -> level
-  }
-
 }
