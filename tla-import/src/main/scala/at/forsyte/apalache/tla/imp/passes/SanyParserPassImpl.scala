@@ -49,7 +49,6 @@ class SanyParserPassImpl @Inject() (
     if (filename.endsWith(".json")) {
       try {
         val moduleJson = UJsonRep(ujson.read(new File(filename)))
-        // TODO: Implement a TagReader in issue #780
         val modules = new UJsonToTla(Some(sourceStore))(UntypedReader).fromRoot(moduleJson)
         rootModule = modules match {
           case rMod +: Nil => Some(rMod)
@@ -85,22 +84,23 @@ class SanyParserPassImpl @Inject() (
         val outdir = options.getOrError("io", "outdir").asInstanceOf[Path]
         writerFactory.writeModuleAllFormats(rootModule.get.copy(name = "OutParser"), TlaWriter.STANDARD_MODULES,
             outdir.toFile)
-        JsonWriter.write(
-            rootModule.get,
-            new File(outdir.toFile, "out-parser.json")
-        )
 
         // write parser output to specified destination, if requested
         val output = options.getOrElse("parser", "output", "")
         if (output.nonEmpty) {
-          if (output.contains(".tla"))
-            writerFactory.writeModuleToTla(rootModule.get, TlaWriter.STANDARD_MODULES, new File(output))
-          else if (output.contains(".json"))
-            writerFactory.writeModuleToJson(rootModule.get, TlaWriter.STANDARD_MODULES, new File(output))
-          else
-            logger.error(
-                "  > Error writing output: please give either .tla or .json filename"
-            )
+          val outputDir = new File(output).getParentFile
+          val filename = new File(output).getName
+          if (filename.endsWith(".tla")) {
+            val name = filename.substring(0, filename.length - ".tla".length)
+            writerFactory.writeModuleToTla(rootModule.get.copy(name = name), TlaWriter.STANDARD_MODULES, outputDir)
+          } else if (output.endsWith(".json")) {
+            val name = filename.substring(0, filename.length - ".json".length)
+            writerFactory.writeModuleToTla(rootModule.get.copy(name = name), TlaWriter.STANDARD_MODULES,
+                new File(output))
+            writerFactory.writeModuleToJson(rootModule.get, TlaWriter.STANDARD_MODULES, outputDir)
+          } else {
+            logger.error("  > Error writing output: expected .tla or .json, found: " + output)
+          }
 
           if (options.getOrElse("general", "debug", false)) {
             val sourceLocator =
