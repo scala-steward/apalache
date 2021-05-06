@@ -40,7 +40,7 @@ class ScriptConfigurationPassImpl @Inject() (val options: PassOptions, val sourc
       while (dashboard.queueLen > 0) {
         val (testModule, testScript) = dashboard.pop().get
         tlaWriterFactory.writeModuleAllFormats(testModule, TlaWriter.STANDARD_MODULES, new File("."))
-        logger.info(s"Wrote test ${testScript.testName} to ${testModule.name}")
+        logger.info(s"Saved test ${testScript.testName}{.tla,.json}")
       }
       logger.info(s" > GENERATED: $nGenerated IGNORED: ${dashboard.stats.nIgnored}")
       true

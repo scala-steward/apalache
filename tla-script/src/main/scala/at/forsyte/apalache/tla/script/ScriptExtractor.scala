@@ -40,12 +40,17 @@ class ScriptExtractor(store: AnnotationStore, tracker: TransformationTracker) ex
 
   private def isolateTestInModule(inputModule: TlaModule, nonTestDefs: Map[String, TlaOperDecl])(
       testTriple: TestTriple): Option[(TlaModule, ScriptCommand)] = {
-    val moduleDecls: Seq[TlaDecl] =
-      inputModule.constDeclarations ++ inputModule.assumeDeclarations ++ inputModule.varDeclarations ++ nonTestDefs.values.toSeq
+    // it is crucial to keep the original order of definitions, as SANY is sensitive to it
+    val nonTestDefsSorted = inputModule.operDeclarations.filter(d => nonTestDefs.contains(d.name))
 
     testTriple.testAnnotation match {
       case Annotation("testStateless") =>
         val command = StatelessScriptCommand(testTriple.decl.name)
+        // importantly, do not include variables, as they are not needed for stateless tests
+        val moduleDecls: Seq[TlaDecl] =
+          inputModule.constDeclarations ++
+            inputModule.assumeDeclarations ++
+            nonTestDefsSorted
         for {
           cinit <- groupKinds(nonTestDefs, command.testName, command.constInit,
               testTriple.kinds.collect { case r @ RequireConst(_) => r })
@@ -53,6 +58,11 @@ class ScriptExtractor(store: AnnotationStore, tracker: TransformationTracker) ex
 
       case Annotation("testAction") =>
         val command = ActionScriptCommand(testTriple.decl.name)
+        val moduleDecls: Seq[TlaDecl] =
+          inputModule.constDeclarations ++
+            inputModule.assumeDeclarations ++
+            inputModule.varDeclarations ++
+            nonTestDefsSorted
         for {
           cinit <- groupKinds(nonTestDefs, command.testName, command.constInit,
               testTriple.kinds.collect { case r @ RequireConst(_) => r })
@@ -64,6 +74,11 @@ class ScriptExtractor(store: AnnotationStore, tracker: TransformationTracker) ex
 
       case Annotation("testExecution", AnnotationInt(length)) =>
         val command = ExecScriptCommand(testTriple.decl.name, length)
+        val moduleDecls: Seq[TlaDecl] =
+          inputModule.constDeclarations ++
+            inputModule.assumeDeclarations ++
+            inputModule.varDeclarations ++
+            nonTestDefsSorted
         for {
           cinit <- groupKinds(nonTestDefs, command.testName, command.constInit,
               testTriple.kinds.collect { case r @ RequireConst(_) => r })
