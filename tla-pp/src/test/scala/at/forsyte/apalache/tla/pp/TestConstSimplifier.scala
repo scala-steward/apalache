@@ -15,6 +15,8 @@ import at.forsyte.apalache.tla.lir.convenience._
 import at.forsyte.apalache.tla.lir.transformations.impl.IdleTracker
 import at.forsyte.apalache.tla.lir.TypedPredefs._
 import at.forsyte.apalache.tla.typecheck._
+import org.scalatest.concurrent.TimeLimits._
+import org.scalatest.time.SpanSugar._
 
 import at.forsyte.apalache.tla.lir.oper._
 import at.forsyte.apalache.tla.lir.transformations.impl.IdleTracker
@@ -28,6 +30,21 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
 
   override def beforeEach(): Unit = {
     simplifier = new ConstSimplifier(new IdleTracker())
+  }
+
+  def wrap[T](expression: TlaEx, f: => T): Boolean = {
+    try {
+      failAfter(1 second) {
+        f
+        true
+      }
+    } catch {
+      case _: TlaInputError => true
+      case e =>
+        println(expression)
+        throw e
+        false
+    }
   }
 
   test("simplifies arithmetical operations with their neutral values") {
@@ -48,18 +65,15 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
           tla.plus(ex, tla.minus(tla.name("x") as IntT1(), tla.name("x") as IntT1()) as IntT1()) as IntT1()
       )
       expressions.forall({ expression =>
-        try {
+        wrap(expression, {
           val result = simplifier.simplify(expression)
 
           result shouldBe simplifier.simplify(ex) withClue s"when simplifying ${expression.toString}"
-          true
-        } catch {
-          case _: TlaInputError => true
-        }
+        })
       })
 
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   test("simplifies arithmetical operations that result in 0") {
@@ -78,27 +92,23 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
       )
 
       // 0 ^ ex should not be 0 only when ex == 0
-      try {
+      wrap(ex, {
         if (simplifier.simplify(ex) != (tla.int(0) as IntT1())) {
           expressions :+ (tla.exp(tla.int(0), ex) as IntT1())
         }
-      } catch {
-        case _: TlaInputError =>
-      }
+      })
 
       expressions.forall({ expression =>
-        try {
+        wrap(expression, {
           val result = simplifier.simplify(expression)
 
           result shouldBe (tla.int(0) as IntT1()) withClue s"when simplifying ${expression.toString}"
           true
-        } catch {
-          case _: TlaInputError => true
-        }
+        })
       })
 
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   test("simplifies arithmetical operations that result in 1") {
@@ -112,18 +122,16 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
           tla.exp(tla.int(1), ex) as IntT1()
       )
       expressions.forall({ expression =>
-        try {
+        wrap(expression, {
           val result = simplifier.simplify(expression)
 
           result shouldBe (tla.int(1) as IntT1()) withClue s"when simplifying ${expression.toString}"
           true
-        } catch {
-          case _: TlaInputError => true
-        }
+        })
       })
 
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   test("simplifies sums") {
@@ -134,7 +142,7 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
       result shouldBe (tla.int(a + b) as IntT1()) withClue s"when simplifying ${expression.toString}"
       true
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   test("simplifies subtractions") {
@@ -145,7 +153,7 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
       result shouldBe (tla.int(a - b) as IntT1()) withClue s"when simplifying ${expression.toString}"
       true
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   test("simplifies multiplications") {
@@ -156,7 +164,7 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
       result shouldBe (tla.int(a * b) as IntT1()) withClue s"when simplifying ${expression.toString}"
       true
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   test("simplifies divisions or throws error when invalid") {
@@ -177,7 +185,7 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
         true
       }
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   test("simplifies mods or throws error when invalid") {
@@ -198,7 +206,7 @@ class TestConstSimplifier extends FunSuite with BeforeAndAfterEach with Checkers
         true
       }
     }
-    check(prop, minSuccessful(1000), sizeRange(8))
+    check(prop, minSuccessful(10000), sizeRange(8))
   }
 
   // Since exponential operators are highly value dependent due to precision and sizes, let's use unit tests
