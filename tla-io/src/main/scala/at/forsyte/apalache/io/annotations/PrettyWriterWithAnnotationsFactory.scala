@@ -17,6 +17,10 @@ class PrettyWriterWithAnnotationsFactory @Inject() (sourceStore: SourceStore, ch
     new PrettyWriterWithAnnotations(store, printWriter)
   }
 
+  override def createProseWriter(printWriter: PrintWriter): TlaWriter = {
+    new ProseWriterWithAnnotations(store, printWriter)
+  }
+
   override def createJsonWriter(printWriter: PrintWriter): TlaWriter = {
     new JsonTlaWriter(sourceStore, changeListener, printWriter)
   }

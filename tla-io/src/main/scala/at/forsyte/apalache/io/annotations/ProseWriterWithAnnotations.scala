@@ -1,8 +1,7 @@
 package at.forsyte.apalache.io.annotations
 
 import at.forsyte.apalache.io.annotations.store.AnnotationStore
-import at.forsyte.apalache.tla.lir.{TlaDecl, TlaEx, TlaModule}
-import at.forsyte.apalache.io.lir.{PrettyWriter, TextLayout, TlaDeclAnnotator, TlaWriter}
+import at.forsyte.apalache.io.lir.{ProseWriter, TextLayout, TlaDeclAnnotator, TlaWriter}
 import at.forsyte.apalache.tla.imp.AnnotationExtractor
 import at.forsyte.apalache.tla.lir._
 
@@ -13,7 +12,7 @@ import java.io.PrintWriter
  *
  * @author Igor Konnov
  */
-class PrettyWriterWithAnnotations(annotationStore: AnnotationStore, writer: PrintWriter,
+class ProseWriterWithAnnotations(annotationStore: AnnotationStore, writer: PrintWriter,
     layout: TextLayout = TextLayout())
     extends TlaWriter {
 
@@ -30,21 +29,21 @@ class PrettyWriterWithAnnotations(annotationStore: AnnotationStore, writer: Prin
           typeAnnotation
 
         case Some(annotations) =>
-          val annotationsAsStr = annotations.map {
-            case Annotation(AnnotationExtractor.FREE_TEXT, AnnotationStr(contents)) =>
-              // print the free text as is
-              contents
+          val annotationsAsStr = annotations map {
+            case Annotation(AnnotationExtractor.FREE_TEXT, AnnotationStr(text)) =>
+              // return the text as as
+              text.trim()
 
-            case a =>
-              // print other annotations in the proper syntax
-              a.toPrettyString
+            case other =>
+              // wrap with markdown quotes to display verbatim
+              "```" + other.toPrettyString + "```"
           }
           Some(typeAnnotation.getOrElse(List()) ++ annotationsAsStr)
       }
     }
   }
 
-  private val prettyWriter: PrettyWriter = new PrettyWriter(writer, layout, annotator)
+  private val englishWriter: ProseWriter = new ProseWriter(writer, layout, annotator)
 
   /**
    * Write a module, including all declarations
@@ -52,7 +51,7 @@ class PrettyWriterWithAnnotations(annotationStore: AnnotationStore, writer: Prin
    * @param mod a module
    */
   override def write(mod: TlaModule, extendedModuleNames: List[String]): Unit = {
-    prettyWriter.write(mod, extendedModuleNames)
+    englishWriter.write(mod, extendedModuleNames)
   }
 
   /**
@@ -61,7 +60,7 @@ class PrettyWriterWithAnnotations(annotationStore: AnnotationStore, writer: Prin
    * @param decl a declaration
    */
   override def write(decl: TlaDecl): Unit = {
-    prettyWriter.write(decl)
+    englishWriter.write(decl)
   }
 
   /**
@@ -70,6 +69,6 @@ class PrettyWriterWithAnnotations(annotationStore: AnnotationStore, writer: Prin
    * @param expr an expression
    */
   override def write(expr: TlaEx): Unit = {
-    prettyWriter.write(expr)
+    englishWriter.write(expr)
   }
 }
