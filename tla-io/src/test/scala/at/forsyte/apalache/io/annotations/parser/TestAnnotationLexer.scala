@@ -69,7 +69,7 @@ class TestAnnotationLexer extends FunSuite {
 
   test("inline string argument") {
     val text = """@baz: one;"""
-    val expected = List(AT_IDENT("baz"), INLINE_STRING(" one"))
+    val expected = List(AT_IDENT("baz"), INLINE_STRING(": one"), SEMI())
     expectOk(expected, text)
   }
 
@@ -100,7 +100,7 @@ class TestAnnotationLexer extends FunSuite {
     // a sequence of control characters is replaced with a single space
     val text =
       " @type: Int \t\f\r\n => Int;".stripMargin
-    val expected = List(AT_IDENT("type"), INLINE_STRING(" Int => Int"))
+    val expected = List(AT_IDENT("type"), INLINE_STRING(": Int => Int"), SEMI())
     expectOk(expected, text)
   }
 }

@@ -40,7 +40,8 @@ object AnnotationLexer extends RegexParsers {
 
   def token: Parser[AnnotationToken] =
     positioned(
-        leftParen | rightParen | comma | dot | boolean | atIdentifier | identifier | number | string | inline_string | unexpected_char,
+        leftParen | rightParen | comma | dot | semi | boolean | atIdentifier | identifier | number |
+          string | inline_string | unexpected_char,
     ) ///
 
   def skip: Parser[Unit] = rep(whiteSpace) ^^^ Unit
@@ -62,8 +63,10 @@ object AnnotationLexer extends RegexParsers {
   }
 
   private def inline_string: Parser[INLINE_STRING] = {
-    """:[a-zA-Z0-9_~!#\\$%^&*\-+=|(){}\[\],:`'<>.?/ \t\r\f\n]*;""".r ^^ { text =>
-      val contents = text.substring(1, text.length - 1)
+    // This string is slightly different from the one in `string`: It does not allow for ':' and ';'.
+    // We do not require this string to be closed with ';', as we are tracking ';' as a separate token.
+    """:[a-zA-Z0-9_~!#\\$%^&*\-+=|(){}\[\],`'<>:.?/ \t\r\f\n]*""".r ^^ { text =>
+      val contents = text.substring(1) // remove the leading ':'
       // Inline string may contain line feeds and other control characters. Remove them.
       val cleared = whiteSpace.replaceAllIn(contents, " ")
       INLINE_STRING(cleared)
@@ -71,7 +74,9 @@ object AnnotationLexer extends RegexParsers {
   }
 
   private def unexpected_char: Parser[Nothing] = {
-    failure("Unexpected character. Missing ')' or ';'?")
+    (".".r ^^ { char =>
+      s"Unexpected character '$char'."
+    }).flatMap(failure)
   }
 
   private def number: Parser[NUMBER] = {
@@ -96,5 +101,9 @@ object AnnotationLexer extends RegexParsers {
 
   private def dot: Parser[DOT] = {
     "." ^^ (_ => DOT())
+  }
+
+  private def semi: Parser[SEMI] = {
+    ";" ^^ (_ => SEMI())
   }
 }

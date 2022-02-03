@@ -13,9 +13,16 @@ package at.forsyte.apalache.io.annotations.parser
  * <p>The main design principle of the preprocessor is that it should not fail on any input.
  * The preprocessor should respect the structure of the comments, but it may return ill-formed
  * annotations, if they are ill-formed in the original text. This preprocessor prunes the comment
- * tokens, even in arguably valid cases (e.g., inside a string). Although it is usually not a good idea
- * to write an ad-hoc lexer, it is not obvious to me, how to use a lexer generator here.
- * However, if someone knows how to write this preprocessor with a lexer generator, it would be great!
+ * tokens, even in arguably valid cases (e.g., inside a string).</p>
+ *
+ * <p>It would be great, if we could use a standard lexer generator for this problem.
+ * However, I do not know how to that. Our problem is a bit different from token recognition.
+ * A lexer turns a string into a stream of tokens, if the string is recognizable; otherwise, the lexer
+ * reports an error. This approach is fragile for our use case, as we should be able to preprocess
+ * arbitrary strings. CommentPreprocessor identifies strings that look like annotations and delegates the
+ * actual parsing to AnnotationLexer and AnnotationParser. The early version of AnnotationParser tried to
+ * handle arbitrary strings by recognizing junk tokens, but that did not work well. The current decomposition
+ * into `CommentPreprocessor`, `AnnotationLexer`, and `AnnotationParser` looks easier to understand and support.</p>
  * </p>
  *
  * <p>See the annotations HOWTO: https://apalache.informal.systems/docs/HOWTOs/howto-write-type-annotations.html</p>

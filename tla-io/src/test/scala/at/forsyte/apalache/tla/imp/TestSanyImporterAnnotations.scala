@@ -141,15 +141,43 @@ class TestSanyImporterAnnotations extends FunSuite with BeforeAndAfter {
     }
   }
 
+  test("annotation with multiple arguments") {
+    val text =
+      """---- MODULE oper ----
+        |(*
+        |   @anno("one", "two", 3)
+        |*)
+        |A == TRUE
+        |================================
+      """.stripMargin
+
+    val module = loadModule(text, "oper")
+
+    module.declarations.find(_.name == "A") match {
+      case Some(d @ TlaOperDecl(_, _, _)) =>
+        val annotations = annotationStore(d.ID)
+        val expected = Annotation(
+            "anno",
+            mkStr("one"),
+            mkStr("two"),
+            mkInt(3),
+        ) :: Nil
+        assert(expected == annotations)
+
+      case _ =>
+        fail("Expected an operator")
+    }
+  }
+
   test("annotated local operator") {
     // in contrast to LET-IN and RECURSIVE, the comment annotations for local operators should come before
     // the keyword LOCAL. Need to figure that with Markus.
     val text =
       """---- MODULE oper ----
-        |EXTENDS Integers
-        |
-        |(*
-        |   @pure
+      |EXTENDS Integers
+      |
+      |(*
+      |   @pure
         |   @type("Int => Int")
         |*)
         |LOCAL Inc(x) == x + 1
@@ -162,7 +190,7 @@ class TestSanyImporterAnnotations extends FunSuite with BeforeAndAfter {
 
     module.declarations.find(_.name == "A") match {
       // SanyImporter introduces a let-definition before application of a LOCAL operator
-      case Some(d @ TlaOperDecl(_, _, LetInEx(_, localDef))) =>
+      case Some(TlaOperDecl(_, _, LetInEx(_, localDef))) =>
         val annotations = annotationStore(localDef.ID)
         val expected = Annotation("pure") :: Annotation(
             "type",
@@ -269,6 +297,29 @@ class TestSanyImporterAnnotations extends FunSuite with BeforeAndAfter {
     }
   }
 
+  test("missing colon") {
+    // If the user forgets the colon, then @type is treated as an annotation without arguments.
+    // In this case, the annotation parser works, but the type parser should complain.
+    val text =
+      """-------- MODULE missing ------------
+      |\* @type did not read the doc
+      |action == TRUE
+      |================================
+      """.stripMargin
+
+    val module = loadModule(text, "missing")
+    module.declarations.find(_.name == "action") match {
+      case Some(d @ TlaOperDecl(_, _, _)) =>
+        val annotations = annotationStore(d.ID)
+        assert(annotations.length == 2)
+        // ignore the #freeText annotation
+        assert(Annotation("type") == annotations(1))
+
+      case _ =>
+        fail("Expected an operator")
+    }
+  }
+
   test("missing semicolon") {
     // regression for #954
     val text =
@@ -283,7 +334,56 @@ class TestSanyImporterAnnotations extends FunSuite with BeforeAndAfter {
       loadModule(text, "missing")
     }
     assert(
-        "line 4, col 1 to line 4, col 14 of module missing: Unexpected character. Missing ')' or ';'?" == caught.getMessage)
+        "line 4, col 1 to line 4, col 14 of module missing: Expected a single argument between ':' and ';' or (arg1, ..., argN)" == caught.getMessage)
+  }
+
+  test("missing closing parenthesis") {
+    // regression for #954
+    val text =
+      """-------- MODULE missing ------------
+        |\* last action performed
+        |\* @type(1,
+        |action == TRUE
+        |================================
+      """.stripMargin
+
+    val caught = intercept[AnnotationParserError] {
+      loadModule(text, "missing")
+    }
+    assert(
+        "line 4, col 1 to line 4, col 14 of module missing: Expected a single argument between ':' and ';' or (arg1, ..., argN)" == caught.getMessage)
+  }
+
+  test("missing closing quote") {
+    // regression for #954
+    val text =
+      """-------- MODULE missing ------------
+        |\* last action performed
+        |\* @type(1, "aaa)
+        |action == TRUE
+        |================================
+      """.stripMargin
+
+    val caught = intercept[AnnotationParserError] {
+      loadModule(text, "missing")
+    }
+    assert("""line 4, col 1 to line 4, col 14 of module missing: Unexpected character '"'.""" == caught.getMessage)
+  }
+
+  test("unexpected character") {
+    // TLA+ restricts strings to a subset of ASCII
+    val text =
+      """-------- MODULE missing ------------
+        |\* last action performed
+        |\* @type: недопустимая последовательность;
+        |action == TRUE
+        |================================
+      """.stripMargin
+
+    val caught = intercept[AnnotationParserError] {
+      loadModule(text, "missing")
+    }
+    assert("line 4, col 1 to line 4, col 14 of module missing: Unexpected character 'н'." == caught.getMessage)
   }
 
   test("corner cases") {

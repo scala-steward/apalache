@@ -25,7 +25,7 @@ class AnnotationParser extends Parsers {
     }
   }
 
-  def annotation: Parser[Annotation] = phrase(atIdent ~ opt(argsInParentheses | argAfterColon)) ^^ {
+  def annotation: Parser[Annotation] = phrase(atIdent ~ opt(args)) ^^ {
     case name ~ None =>
       Annotation(name)
 
@@ -33,22 +33,19 @@ class AnnotationParser extends Parsers {
       Annotation(name, args: _*)
   }
 
-  def argsInParentheses: Parser[List[AnnotationArg]] = LPAREN() ~ repsep(arg, COMMA()) ~ RPAREN() ^^ {
-    case _ ~ args ~ _ =>
-      args
+  def args: Parser[List[AnnotationArg]] = {
+    (inlineString ~ SEMI()) ^^ { case str ~ _ => List(AnnotationStr(str)) } |
+      (LPAREN() ~ repsep(arg, COMMA()) ~ RPAREN()) ^^ { case _ ~ args ~ _ => args } |
+      failure("Expected a single argument between ':' and ';' or (arg1, ..., argN)")
   }
 
-  def argAfterColon: Parser[List[AnnotationArg]] = inlineString ^^ { str =>
-    List(AnnotationStr(str))
+  def argAfterColon: Parser[List[AnnotationArg]] = {
+    inlineString ^^ { str => List(AnnotationStr(str)) }
   }
 
   def arg: Parser[AnnotationArg] = stringArg | intArg | boolArg | identArg
 
   def stringArg: Parser[AnnotationStr] = string ^^ { str =>
-    AnnotationStr(str)
-  }
-
-  def inlineStringArg: Parser[AnnotationStr] = inlineString ^^ { str =>
     AnnotationStr(str)
   }
 
@@ -90,8 +87,6 @@ class AnnotationParser extends Parsers {
 }
 
 object AnnotationParser {
-  private val parser: AnnotationParser = new AnnotationParser
-
   def parse(reader: Reader): Either[String, Annotation] = {
     for {
       tokens <- AnnotationLexer(reader).right

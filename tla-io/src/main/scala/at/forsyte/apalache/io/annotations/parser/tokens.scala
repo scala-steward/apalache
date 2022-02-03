@@ -12,7 +12,9 @@ sealed trait AnnotationToken extends Positional
  *
  * @param name the name associated with the identifier
  */
-case class IDENT(name: String) extends AnnotationToken {}
+case class IDENT(name: String) extends AnnotationToken {
+  override def toString: String = name
+}
 
 /**
  * Annotation name that start with "@". We introduce a special token for that instead of using
@@ -21,52 +23,77 @@ case class IDENT(name: String) extends AnnotationToken {}
  *
  * @param name the name associated with the identifier
  */
-case class AT_IDENT(name: String) extends AnnotationToken {}
+case class AT_IDENT(name: String) extends AnnotationToken {
+  override def toString: String = '@' + name
+}
 
 /**
  * A string according to the TLA+ syntax, that is a sequence of characters between quotes, "...".
  *
  * @param text the contents of the string
  */
-case class STRING(text: String) extends AnnotationToken {}
+case class STRING(text: String) extends AnnotationToken {
+  override def toString: String = '"' + text + '"'
+}
 
 /**
  * A string that appears between ":" and ";".
  *
  * @param text the contents of the string
  */
-case class INLINE_STRING(text: String) extends AnnotationToken {}
+case class INLINE_STRING(text: String) extends AnnotationToken {
+  override def toString: String = text
+}
 
 /**
  * A number
  *
  * @param num the value of the number
  */
-case class NUMBER(num: BigInt) extends AnnotationToken {}
+case class NUMBER(num: BigInt) extends AnnotationToken {
+  override def toString: String = num.toString()
+}
 
 /**
  * A Boolean value, FALSE or TRUE.
  *
  * @param bool string representation of a Boolean value: "FALSE" or "TRUE"
  */
-case class BOOLEAN(bool: Boolean) extends AnnotationToken {}
+case class BOOLEAN(bool: Boolean) extends AnnotationToken {
+  override def toString: String = bool.toString
+}
 
 /**
  * Comma ",".
  */
-case class COMMA() extends AnnotationToken {}
+case class COMMA() extends AnnotationToken {
+  override def toString: String = "','"
+}
 
 /**
  * Dot ".". We don't really use dots, but they are useful, e.g., for parsing 1.23.
  */
-case class DOT() extends AnnotationToken {}
+case class DOT() extends AnnotationToken {
+  override def toString: String = "'.'"
+}
 
 /**
  * Left parenthesis "(".
  */
-case class LPAREN() extends AnnotationToken {}
+case class LPAREN() extends AnnotationToken {
+  override def toString: String = "'('"
+}
 
 /**
  * Right parenthesis ")".
  */
-case class RPAREN() extends AnnotationToken {}
+case class RPAREN() extends AnnotationToken {
+  override def toString: String = "')'"
+}
+
+/**
+ * Semicolon ";".
+ */
+case class SEMI() extends AnnotationToken {
+  override def toString: String = "';'"
+}
