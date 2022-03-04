@@ -94,6 +94,21 @@ class TestSetMembershipSimplifier
       val nestedInputValue = tla.and(tla.in(name, set).as(BoolT1()), tlaTrue).as(BoolT1())
       simplifier(nestedInputValue) shouldBe tla.and(tlaTrue, tlaTrue).as(BoolT1())
 
+      // <<{{1}}>> \in Seq(SUBSET Int)  ~>  TRUE
+      val setOfSetOfInt = SetT1(SetT1(IntT1()))
+      val seqOfSetOfSetOfInt = SeqT1(setOfSetOfInt)
+      val nestedSeqSubsetVal =
+        tla.tuple(tla.enumSet(intSetVal).as(setOfSetOfInt)).as(SeqT1(setOfSetOfInt)).as(seqOfSetOfSetOfInt)
+      val nestedSeqSubsetTest =
+        tla.in(nestedSeqSubsetVal, tla.seqSet(tla.powSet(intSet).as(setOfSetOfInt)).as(seqOfSetOfSetOfInt)).as(BoolT1())
+      simplifier(nestedSeqSubsetTest) shouldBe tlaTrue
+
+      // {<<1>>} \in SUBSET (Seq(Int))  ~>  TRUE
+      val setOfSeqOfInt = SetT1(SeqT1(IntT1()))
+      val nestedSubsetSeqVal = tla.enumSet(tla.tuple(intVal).as(SeqT1(IntT1()))).as(setOfSeqOfInt)
+      val nestedSubsetSeqTest = tla.in(nestedSubsetSeqVal, tla.powSet(intSeqSet).as(setOfSeqOfInt)).as(BoolT1())
+      simplifier(nestedSubsetSeqTest) shouldBe tlaTrue
+
       // fun \in [BOOLEAN -> Int], ...  ~>  TRUE
       expressions.foreach { case (name2, _, set2) =>
         val funSetType = SetT1(FunT1(name.typeTag.asTlaType1(), name2.typeTag.asTlaType1()))
