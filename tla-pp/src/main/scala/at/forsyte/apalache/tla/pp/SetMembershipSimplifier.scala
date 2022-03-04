@@ -7,7 +7,7 @@ import at.forsyte.apalache.tla.lir.transformations.{LanguageWatchdog, Transforma
 import at.forsyte.apalache.tla.lir.values._
 
 /**
- * A simplifier that rewrites expressions commonly found in `TypeOK`.
+ * A simplifier that rewrites expressions commonly found in `TypeOK`. Assumes expressions to be well-typed.
  *
  * After Apalache's type-checking, we can rewrite some expressions to simpler forms. For example, the (after
  * type-checking) vacuously true `x \in BOOLEAN` is rewritten to `TRUE` (as `x` must be a `BoolT1`).
@@ -45,18 +45,10 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
   }
 
   /**
-   * Checks if this transformation is applicable (see [[typeOfSupportedPredefSet]]) to a TLA+ predefined set `ps` of
-   * primitives, and if the types of `name` and `ps` match.
+   * Returns true iff rewriting set membership to `TRUE` is applicable. In particular, it is *not* applicable to `Nat`,
+   * since `i \in Nat` does not hold for all `IntT1`-typed `i`.
    */
-  private def isApplicable(name: TlaEx, ps: TlaPredefSet): Boolean =
-    typeOfSupportedPredefSet.isDefinedAt(ps) && name.typeTag == Typed(typeOfSupportedPredefSet(ps))
-
-  /**
-   * Checks if this transformation is applicable (see [[typeOfSupportedPredefSet]]) to a TLA+ predefined set of
-   * sequences (`Seq(_)`) `ps`, and if the types of `name` and `ps` match.
-   */
-  private def isApplicableSeq(name: TlaEx, ps: TlaPredefSet): Boolean =
-    typeOfSupportedPredefSet.isDefinedAt(ps) && name.typeTag == Typed(SeqT1(typeOfSupportedPredefSet(ps)))
+  private def isApplicable: Function[TlaPredefSet, Boolean] = typeOfSupportedPredefSet.isDefinedAt
 
   /**
    * Simplifies expressions commonly found in `TypeOK`, assuming they are well-typed.
@@ -69,9 +61,9 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
     case OperEx(TlaSetOper.in, name, ValEx(TlaNatSet)) if name.typeTag == Typed(IntT1()) =>
       OperEx(TlaArithOper.ge, name, ValEx(TlaInt(0))(intTag))(boolTag)
     // b \in BOOLEAN, i \in Int, r \in Real  ->  TRUE
-    case OperEx(TlaSetOper.in, name, ValEx(ps: TlaPredefSet)) if isApplicable(name, ps) => trueVal
+    case OperEx(TlaSetOper.in, _, ValEx(ps: TlaPredefSet)) if isApplicable(ps) => trueVal
     // seq \in Seq(_)  ->  TRUE
-    case OperEx(TlaSetOper.in, name, OperEx(TlaSetOper.seqSet, ValEx(ps: TlaPredefSet))) if isApplicableSeq(name, ps) =>
+    case OperEx(TlaSetOper.in, _, OperEx(TlaSetOper.seqSet, ValEx(ps: TlaPredefSet))) if isApplicable(ps) =>
       trueVal
     // return `ex` unchanged
     case ex => ex
