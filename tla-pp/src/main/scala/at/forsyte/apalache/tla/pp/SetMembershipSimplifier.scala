@@ -75,7 +75,12 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
 
     // x \in ApplicableSets  ~>  TRUE
     case OperEx(TlaSetOper.in, _, set) if isApplicable(set) => trueVal
+    // fun \in [S1 -> S2]  ~>  TRUE   for S1, S2 \in ApplicableSets
+    case OperEx(TlaSetOper.in, _, OperEx(TlaSetOper.funSet, set1, set2)) if isApplicable(set1) && isApplicable(set2) =>
       trueVal
+    // fun \in [A -> S1]  ~>  DOMAIN fun = A   for S1 \in ApplicableSets
+    case OperEx(TlaSetOper.in, fun, OperEx(TlaSetOper.funSet, domain, set2)) if isApplicable(set2) =>
+      OperEx(TlaOper.eq, OperEx(TlaFunOper.domain, fun)(domain.typeTag), domain)(boolTag)
     // return `ex` unchanged
     case ex => ex
   }
