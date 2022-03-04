@@ -7,9 +7,15 @@ import at.forsyte.apalache.tla.lir.transformations.{LanguageWatchdog, Transforma
 import at.forsyte.apalache.tla.lir.values._
 
 /**
- * A simplifier that rewrites vacuously true membership tests based on type information.
+ * A simplifier that rewrites expressions commonly found in `TypeOK`.
  *
- * For example, `x \in BOOLEAN` is rewritten to `TRUE` if x is typed BoolT1.
+ * After Apalache's type-checking, we can rewrite some expressions to simpler forms. For example, the (after
+ * type-checking) vacuously true `x \in BOOLEAN` is rewritten to `TRUE` (as `x` must be a `BoolT1`).
+ *
+ * We currently perform the following simplifications:
+ *   - `n \in Nat` -> `x >= 0`
+ *   - `b \in BOOLEAN`, `i \in Int`, `r \in Real` -> `TRUE`
+ *   - `seq \in Seq(_)` -> `TRUE`
  *
  * @author
  *   Thomas Pani
@@ -27,8 +33,8 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
   }
 
   /**
-   * Returns the type of a TLA+ predefined set, if rewriting set membership to TRUE is applicable. In particular, it is
-   * *not* applicable to `Nat`, since `i \in Nat` does not hold for all `IntT1`-typed `i`.
+   * Returns the type of a TLA+ predefined set, if rewriting set membership to `TRUE` is applicable. In particular, it
+   * is *not* applicable to `Nat`, since `i \in Nat` does not hold for all `IntT1`-typed `i`.
    */
   private def typeOfSupportedPredefSet: PartialFunction[TlaPredefSet, TlaType1] = {
     case TlaBoolSet => BoolT1()
@@ -53,9 +59,10 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
     typeOfSupportedPredefSet.isDefinedAt(ps) && name.typeTag == Typed(SeqT1(typeOfSupportedPredefSet(ps)))
 
   /**
-   * Rewrites vacuously true membership tests based on type information, and rewrites `i \in Nat` to `i \ge 0`.
+   * Simplifies expressions commonly found in `TypeOK`, assuming they are well-typed.
    *
-   * For example, `x \in BOOLEAN` is rewritten to `TRUE` if `x` is typed `BoolT1`.
+   * @see
+   *   [[SetMembershipSimplifier]] for a full list of supported rewritings.
    */
   private def transformMembership: PartialFunction[TlaEx, TlaEx] = {
     // n \in Nat  ->  x >= 0
