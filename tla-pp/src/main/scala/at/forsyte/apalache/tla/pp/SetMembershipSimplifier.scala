@@ -33,29 +33,21 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
   }
 
   /**
-   * Returns the type of a TLA+ predefined set, if rewriting set membership to `TRUE` is applicable. In particular, it
-   * is *not* applicable to `Nat`, since `i \in Nat` does not hold for all `IntT1`-typed `i`.
-   */
-  private def typeOfSupportedPredefSet: PartialFunction[TlaPredefSet, TlaType1] = {
-    case TlaBoolSet => BoolT1()
-    case TlaIntSet  => IntT1()
-    case TlaRealSet => RealT1()
-    case TlaStrSet  => StrT1()
-    // intentionally omits TlaNatSet, see above.
-  }
-
-  /**
-   * Returns true iff rewriting set membership to `TRUE` is applicable. This holds for the predefined sets
-   *   - BOOLEAN, Int, Real, STRING,
-   *   - and sequence sets Seq(BOOLEAN), Seq(Int), Seq(Real), Seq(STRING) thereof.
+   * Returns true iff rewriting set membership to `TRUE` is applicable. The applicable sets are inductively defined as
+   *   - the predefined sets BOOLEAN, Int, Real, STRING,
+   *   - all set of sequences over applicable sets, e.g., Seq(BOOLEAN), Seq(Int), Seq(Seq(Int)), Seq(SUBET Int), ...
+   *   - power sets of applicable sets, e.g., SUBSET BOOLEAN, SUBSET Int, SUBSET Seq(Int), ...
    *
-   * In particular, it is *not* applicable to `Nat`, since `i \in Nat` does not hold for all `IntT1`-typed `i`.
+   * In particular, it is *not* applicable to `Nat` and sequence sets / power sets thereof, since `i \in Nat` does not
+   * hold for all `IntT1`-typed `i`.
    */
   private def isApplicable: Function[TlaEx, Boolean] = {
-    // BOOLEAN, Int, Real, STRING
-    case ValEx(ps: TlaPredefSet) => typeOfSupportedPredefSet.isDefinedAt(ps)
-    // Seq(PredefSet)  for PredefSet \in {BOOLEAN, Int, Real, STRING}
-    case OperEx(TlaSetOper.seqSet, ValEx(ps: TlaPredefSet)) => typeOfSupportedPredefSet.isDefinedAt(ps)
+    // base case: BOOLEAN, Int, Real, STRING
+    case ValEx(TlaBoolSet) | ValEx(TlaIntSet) | ValEx(TlaRealSet) | ValEx(TlaStrSet) => true
+
+    // inductive case: Seq(s) for applicable set `s`
+    case OperEx(TlaSetOper.seqSet, set) => isApplicable(set)
+
     // otherwise
     case _ => false
   }
@@ -71,9 +63,9 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
     case OperEx(TlaSetOper.in, name, ValEx(TlaNatSet)) if name.typeTag == Typed(IntT1()) =>
       OperEx(TlaArithOper.ge, name, ValEx(TlaInt(0))(intTag))(boolTag)
 
-    /* *** For ApplicableSets \in {BOOLEAN, Int, Real, STRING, Seq(BOOLEAN), Seq(Int), Seq(Real), Seq(STRING)} *** */
+    /* For ApplicableSets AS (see `isApplicable`): */
 
-    // x \in ApplicableSets  ~>  TRUE
+    // x \in AS  ~>  TRUE
     case OperEx(TlaSetOper.in, _, set) if isApplicable(set) => trueVal
     // fun \in [S1 -> S2]  ~>  TRUE   for S1, S2 \in ApplicableSets
     case OperEx(TlaSetOper.in, _, OperEx(TlaSetOper.funSet, set1, set2)) if isApplicable(set1) && isApplicable(set2) =>
