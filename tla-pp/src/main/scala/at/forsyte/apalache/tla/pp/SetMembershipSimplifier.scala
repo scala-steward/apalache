@@ -45,8 +45,11 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
     // base case: BOOLEAN, Int, Real, STRING
     case ValEx(TlaBoolSet) | ValEx(TlaIntSet) | ValEx(TlaRealSet) | ValEx(TlaStrSet) => true
 
-    // inductive case: Seq(s) for applicable set `s`
+    // inductive cases:
+    // 1. Seq(s) for applicable set `s`
     case OperEx(TlaSetOper.seqSet, set) => isApplicable(set)
+    // 2. SUBSET s for applicable set `s`
+    case OperEx(TlaSetOper.powerset, set) => isApplicable(set)
 
     // otherwise
     case _ => false

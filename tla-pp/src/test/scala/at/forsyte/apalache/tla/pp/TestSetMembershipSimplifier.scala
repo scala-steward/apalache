@@ -47,6 +47,19 @@ class TestSetMembershipSimplifier
   private val intSeqSet = tla.seqSet(tla.intSet()).as(SetT1(SeqT1(IntT1())))
   private val natSeqSet = tla.seqSet(tla.natSet()).as(SetT1(SeqT1(IntT1())))
 
+  private val boolSetVal = tla.enumSet(boolVal, boolName).as(SetT1(BoolT1()))
+  private val strSetVal = tla.enumSet(strVal, strName).as(SetT1(StrT1()))
+  private val intSetVal = tla.enumSet(intVal, intName).as(SetT1(IntT1()))
+
+  private val boolSetName = tla.name("boolSet").as(SetT1(BoolT1()))
+  private val strSetName = tla.name("strSet").as(SetT1(StrT1()))
+  private val intSetName = tla.name("intSet").as(SetT1(IntT1()))
+
+  private val boolPowerset = tla.seqSet(tla.booleanSet()).as(SetT1(SeqT1(BoolT1())))
+  private val strPowerset = tla.seqSet(tla.stringSet()).as(SetT1(SeqT1(StrT1())))
+  private val intPowerset = tla.seqSet(tla.intSet()).as(SetT1(SeqT1(IntT1())))
+  private val natPowerset = tla.seqSet(tla.natSet()).as(SetT1(SeqT1(IntT1())))
+
   val expressions = List(
       (boolName, boolVal, boolSet),
       (strName, strVal, strSet),
@@ -54,6 +67,9 @@ class TestSetMembershipSimplifier
       (boolSeqName, boolSeqVal, boolSeqSet),
       (strSeqName, strSeqVal, strSeqSet),
       (intSeqName, intSeqVal, intSeqSet),
+      (boolSetName, boolSetVal, boolPowerset),
+      (strSetName, strSetVal, strPowerset),
+      (intSetName, intSetVal, intPowerset),
   )
 
   override def beforeEach(): Unit = {
@@ -104,5 +120,10 @@ class TestSetMembershipSimplifier
     val intSeqValInSeqNat = tla.in(intSeqVal, natSeqSet).as(BoolT1())
     simplifier(intSeqNameInSeqNat) shouldBe intSeqNameInSeqNat
     simplifier(intSeqValInSeqNat) shouldBe intSeqValInSeqNat
+
+    val intSetNameInNatPowerset = tla.in(intSetName, natPowerset).as(BoolT1())
+    val intSetValInNatPowerset = tla.in(intSetVal, natPowerset).as(BoolT1())
+    simplifier(intSetNameInNatPowerset) shouldBe intSetNameInNatPowerset
+    simplifier(intSetValInNatPowerset) shouldBe intSetValInNatPowerset
   }
 }
