@@ -101,11 +101,15 @@ class TestSetMembershipSimplifier
         simplifier(funInFunSet) shouldBe tlaTrue
       }
 
-      // fun \in [Seq(Int) -> SUBSET Seq(BOOLEAN)], ...  ~>  TRUE
+      // fun \in [Seq(SUBSET Int) -> SUBSET Seq(BOOLEAN)], ...  ~>  TRUE
+      val intPowersetSeqType = SeqT1(SetT1(IntT1()))
       val boolSeqPowersetType = SetT1(SeqT1(BoolT1()))
-      val nestedFunSetType = SetT1(FunT1(SeqT1(IntT1()), boolSeqPowersetType))
+      val nestedFunSetType = SetT1(FunT1(intPowersetSeqType, boolSeqPowersetType))
       val nestedInput = tla
-        .in(funName, tla.funSet(intSeqSet, tla.powSet(boolSeqSet).as(boolSeqPowersetType)).as(nestedFunSetType))
+        .in(funName,
+            tla
+              .funSet(tla.seqSet(intSeqSet).as(intPowersetSeqType), tla.powSet(boolSeqSet).as(boolSeqPowersetType))
+              .as(nestedFunSetType))
         .as(BoolT1())
       simplifier(nestedInput) shouldBe tlaTrue
 
