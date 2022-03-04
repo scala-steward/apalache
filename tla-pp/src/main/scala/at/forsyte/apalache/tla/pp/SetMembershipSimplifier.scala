@@ -13,9 +13,9 @@ import at.forsyte.apalache.tla.lir.values._
  * type-checking) vacuously true `x \in BOOLEAN` is rewritten to `TRUE` (as `x` must be a `BoolT1`).
  *
  * We currently perform the following simplifications:
- *   - `n \in Nat` -> `x >= 0`
- *   - `b \in BOOLEAN`, `i \in Int`, `r \in Real` -> `TRUE`
- *   - `seq \in Seq(_)` -> `TRUE`
+ *   - `n \in Nat` ~> `x >= 0`
+ *   - `b \in BOOLEAN`, `i \in Int`, `r \in Real` ~> `TRUE`
+ *   - `seq \in Seq(_)` ~> `TRUE`
  *
  * @author
  *   Thomas Pani
