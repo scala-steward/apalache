@@ -45,10 +45,20 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
   }
 
   /**
-   * Returns true iff rewriting set membership to `TRUE` is applicable. In particular, it is *not* applicable to `Nat`,
-   * since `i \in Nat` does not hold for all `IntT1`-typed `i`.
+   * Returns true iff rewriting set membership to `TRUE` is applicable. This holds for the predefined sets
+   *   - BOOLEAN, Int, Real, STRING,
+   *   - and sequence sets Seq(BOOLEAN), Seq(Int), Seq(Real), Seq(STRING) thereof.
+   *
+   * In particular, it is *not* applicable to `Nat`, since `i \in Nat` does not hold for all `IntT1`-typed `i`.
    */
-  private def isApplicable: Function[TlaPredefSet, Boolean] = typeOfSupportedPredefSet.isDefinedAt
+  private def isApplicable: Function[TlaEx, Boolean] = {
+    // BOOLEAN, Int, Real, STRING
+    case ValEx(ps: TlaPredefSet) => typeOfSupportedPredefSet.isDefinedAt(ps)
+    // Seq(PredefSet)  for PredefSet \in {BOOLEAN, Int, Real, STRING}
+    case OperEx(TlaSetOper.seqSet, ValEx(ps: TlaPredefSet)) => typeOfSupportedPredefSet.isDefinedAt(ps)
+    // otherwise
+    case _ => false
+  }
 
   /**
    * Simplifies expressions commonly found in `TypeOK`, assuming they are well-typed.
@@ -57,13 +67,14 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
    *   [[SetMembershipSimplifier]] for a full list of supported rewritings.
    */
   private def transformMembership: PartialFunction[TlaEx, TlaEx] = {
-    // n \in Nat  ->  x >= 0
+    // n \in Nat  ~>  x >= 0
     case OperEx(TlaSetOper.in, name, ValEx(TlaNatSet)) if name.typeTag == Typed(IntT1()) =>
       OperEx(TlaArithOper.ge, name, ValEx(TlaInt(0))(intTag))(boolTag)
-    // b \in BOOLEAN, i \in Int, r \in Real  ->  TRUE
-    case OperEx(TlaSetOper.in, _, ValEx(ps: TlaPredefSet)) if isApplicable(ps) => trueVal
-    // seq \in Seq(_)  ->  TRUE
-    case OperEx(TlaSetOper.in, _, OperEx(TlaSetOper.seqSet, ValEx(ps: TlaPredefSet))) if isApplicable(ps) =>
+
+    /* *** For ApplicableSets \in {BOOLEAN, Int, Real, STRING, Seq(BOOLEAN), Seq(Int), Seq(Real), Seq(STRING)} *** */
+
+    // x \in ApplicableSets  ~>  TRUE
+    case OperEx(TlaSetOper.in, _, set) if isApplicable(set) => trueVal
       trueVal
     // return `ex` unchanged
     case ex => ex
