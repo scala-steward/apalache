@@ -16,6 +16,7 @@ import at.forsyte.apalache.tla.lir.values._
  *   - `n \in Nat` ~> `x >= 0`
  *   - `b \in BOOLEAN`, `i \in Int`, `r \in Real` ~> `TRUE`
  *   - `seq \in Seq(_)` ~> `TRUE`
+ *   - `set \in SUBSET S` ~> `TRUE`
  *
  * @author
  *   Thomas Pani
@@ -70,12 +71,13 @@ class SetMembershipSimplifier(tracker: TransformationTracker) extends AbstractTr
 
     // x \in AS  ~>  TRUE
     case OperEx(TlaSetOper.in, _, set) if isApplicable(set) => trueVal
-    // fun \in [S1 -> S2]  ~>  TRUE   for S1, S2 \in ApplicableSets
+    // fun \in [AS1 -> AS2]  ~>  TRUE
     case OperEx(TlaSetOper.in, _, OperEx(TlaSetOper.funSet, set1, set2)) if isApplicable(set1) && isApplicable(set2) =>
       trueVal
-    // fun \in [A -> S1]  ~>  DOMAIN fun = A   for S1 \in ApplicableSets
+    // fun \in [Dom -> AS]  ~>  DOMAIN fun = Dom
     case OperEx(TlaSetOper.in, fun, OperEx(TlaSetOper.funSet, domain, set2)) if isApplicable(set2) =>
       OperEx(TlaOper.eq, OperEx(TlaFunOper.domain, fun)(domain.typeTag), domain)(boolTag)
+
     // return `ex` unchanged
     case ex => ex
   }
