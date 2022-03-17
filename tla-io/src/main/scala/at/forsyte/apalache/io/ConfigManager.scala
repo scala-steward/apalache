@@ -76,7 +76,7 @@ case class ConfigManager(cmd: CliConfig) {
     val home = System.getProperty("user.home")
     val globalConfig = ConfigSource.file(Paths.get(home, TLA_PLUS_DIR, APALACHE_CFG))
 
-    localConfig
+    localConfig()
       .getOrElse(ConfigSource.empty)
       // `withFallback` supplies configuration sources that only apply if the preceding configs aren't set
       .withFallback(globalConfig.optional)
